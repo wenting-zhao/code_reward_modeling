@@ -1,7 +1,8 @@
 import argparse
-from typing import Any
+from typing import List, Optional, Tuple
 from transformers import SchedulerType
-
+import re
+import modal
 
 def generate_prompt(prompt: str, test: str) -> str:
     """Generate a Python code request prompt string."""
@@ -216,3 +217,54 @@ def parse_args() -> argparse.Namespace:
             )
 
     return args
+
+
+def extract_code_blocks(text: str) -> List[str]:
+    """Extract Python code blocks from a given text wrapped in markdown markers.
+
+    This function identifies and extracts all Python code blocks within a provided
+    text. The code blocks should be surrounded by markdown-style markers, such as
+    ```python ... ```.
+
+    Args:
+    ----
+        text (str): The input text containing Python code blocks marked with
+                    ```python ... ```.
+
+    Returns:
+    -------
+        List[str]: A list of strings, each containing a Python code block extracted
+                   from the text.
+
+    """
+    pattern = r"```python\n(.*?)```"
+    matches = re.finditer(pattern, text, re.DOTALL)
+    return [match.group(1).strip() for match in matches]
+
+def execute_code(sandbox: modal.Sandbox, code_list: List[str], timeout: Optional[int] = None) -> Tuple[List[str], List[str], List[int]]:
+    """
+    Execute a list of Python code statements in a Modal sandbox with optional timeout.
+    Each statement is executed separately.
+
+    Args:
+        sandbox (modal.Sandbox): Modal sandbox to execute the code in
+        code_list (List[str]): List of Python code statements to execute
+        timeout (int, optional): Timeout in seconds. If None, no timeout is enforced.
+
+    Returns:
+        Tuple[List[str], List[str], List[int]]: (list of stdout outputs, list of stderr outputs, list of return codes)
+    """
+    all_stdout = []
+    all_stderr = []
+    all_return_codes = []
+
+    for code in code_list:
+        python_ps = sandbox.exec("python", "-c", code, timeout=timeout)
+        python_ps.wait()
+        all_stdout.append(python_ps.stdout.read())
+        all_return_codes.append(python_ps.returncode)
+        if python_ps.returncode == 124:
+            all_stdout.append("Execution timed out")
+        else:
+            all_stderr.append(python_ps.stderr.read())
+    return all_stdout, all_stderr, all_return_codes

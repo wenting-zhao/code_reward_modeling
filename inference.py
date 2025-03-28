@@ -5,7 +5,7 @@ from utils import generate_prompt
 
 
 def generate_predictions(
-    model_name: str, dataset: Dataset, temperature: float = 1.0, n: int = 1
+    model_name: str, dataset_name: str, dataset: Dataset, temperature: float = 1.0, n: int = 1
 ) -> List[List[str]]:
     """Generate predictions for a given dataset using a specified language model and
     sampling parameters. The function loads the dataset, constructs prompts from
@@ -15,6 +15,7 @@ def generate_predictions(
     Args:
     ----
         model_name (str): Name of the model to use for generation.
+        dataset_name (str): Name of the dataset to use for generation.
         dataset (Dataset): The Dataset object.
         temperature (float, optional): Temperature setting for the model's
             sampling strategy. Default is 1.0.
@@ -30,8 +31,12 @@ def generate_predictions(
 
     prompts: List[List[Dict]] = []
     for example in dataset:
-        prompt = example["prompt"]
-        test = example["test"]
+        if "mbpp" in dataset_name:
+            prompt = example["text"]
+            test = "\n".join(example["test_list"])
+        else:
+            prompt = example["prompt"]
+            test = example["test"]
         prompt = generate_prompt(prompt, test)
         prompts.append([{"role": "user", "content": prompt}])
 
