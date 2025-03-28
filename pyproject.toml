@@ -1,0 +1,13 @@
+[project]
+name = "code-reward-modeling"
+version = "0.1.0"
+description = "Reward modeling for code"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "datasets",
+    "vllm",
+    "torch",
+    "transformers",
+    "modal>=0.73.134",
+]
