@@ -9,7 +9,6 @@ dependencies = [
     "vllm",
     "torch",
     "transformers",
-    "modal>=0.73.134",
     "e2b-code-interpreter>=1.2.0",
     "python-dotenv>=1.1.0",
 ]
