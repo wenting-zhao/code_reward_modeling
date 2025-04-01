@@ -4,7 +4,6 @@ from datasets import load_dataset
 from inference import generate_predictions
 from utils import parse_args, extract_code_blocks, execute_code
 from tqdm import tqdm
-import modal
 
 def main() -> None:
     args = parse_args()
