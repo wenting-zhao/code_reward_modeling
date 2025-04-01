@@ -2,7 +2,11 @@ import argparse
 from typing import List, Optional, Tuple
 from transformers import SchedulerType
 import re
-import modal
+
+from dotenv import load_dotenv
+load_dotenv()
+import e2b
+from e2b_code_interpreter import Sandbox
 
 def generate_prompt(prompt: str, test: str) -> str:
     """Generate a Python code request prompt string."""
@@ -241,30 +245,31 @@ def extract_code_blocks(text: str) -> List[str]:
     matches = re.finditer(pattern, text, re.DOTALL)
     return [match.group(1).strip() for match in matches]
 
-def execute_code(sandbox: modal.Sandbox, code_list: List[str], timeout: Optional[int] = None) -> Tuple[List[str], List[str], List[int]]:
+def execute_code(code_list: List[str], timeout: Optional[int] = None) -> List[any]:
     """
     Execute a list of Python code statements in a Modal sandbox with optional timeout.
     Each statement is executed separately.
 
     Args:
-        sandbox (modal.Sandbox): Modal sandbox to execute the code in
         code_list (List[str]): List of Python code statements to execute
         timeout (int, optional): Timeout in seconds. If None, no timeout is enforced.
 
     Returns:
-        Tuple[List[str], List[str], List[int]]: (list of stdout outputs, list of stderr outputs, list of return codes)
+        Tuple[List[str], List[str]]: (list of stdout outputs, list of stderr outputs)
     """
-    all_stdout = []
-    all_stderr = []
-    all_return_codes = []
+
+    sbx = Sandbox()
+
+    errors = []
 
     for code in code_list:
-        python_ps = sandbox.exec("python", "-c", code, timeout=timeout)
-        python_ps.wait()
-        all_stdout.append(python_ps.stdout.read())
-        all_return_codes.append(python_ps.returncode)
-        if python_ps.returncode == 124:
-            all_stdout.append("Execution timed out")
-        else:
-            all_stderr.append(python_ps.stderr.read())
-    return all_stdout, all_stderr, all_return_codes
+        try:
+            execution = sbx.run_code(code, timeout=timeout)
+            errors.append(execution.error)
+        except e2b.exceptions.TimeoutException as e:
+            errors.append(e)
+            print(code)
+            print("================")
+
+    sbx.kill()
+    return errors

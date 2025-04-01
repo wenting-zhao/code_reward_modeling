@@ -16,15 +16,9 @@ def main() -> None:
     )
     assert len(ds["train"]) == len(all_samples)
 
-    # setup modal
-    image = modal.Image.debian_slim(python_version="3.12")
-    app = modal.App.lookup("safe-code-execution", create_if_missing=True)
-    with modal.enable_output():
-        sandbox = modal.Sandbox.create(app=app, image=image)
-
-    # execute code
-    all_return_codes = []
+    # execute code and get return codes
     all_filtered_samples = []
+    all_return_codes = []
     for example, samples in tqdm(zip(ds["train"], all_samples), total=len(ds["train"])):
         filtered_samples = [extract_code_blocks(sample) for sample in samples]
         filtered_samples = [sample[0] for sample in filtered_samples if len(sample) > 0]
@@ -33,15 +27,15 @@ def main() -> None:
         else:
             test = "\n\n" + example["test"]
         code_list = [sample + test for sample in filtered_samples]
-        _, _, return_codes = execute_code(sandbox, code_list, timeout=5)
-        all_return_codes.append(return_codes)
+        errors = execute_code(code_list, timeout=10)
         all_filtered_samples.append(filtered_samples)
+        return_codes = [0 if error is None else 1 for error in errors]
+        all_return_codes.append(return_codes)
+        print(return_codes)
 
     ds["train"].add_column(name="samples", column=all_filtered_samples).add_column(name="return_codes", column=all_return_codes).to_json(
             f"{args.output_dir}/samples.json"
     )
-
-    sandbox.terminate()
 
 
 if __name__ == "__main__":
